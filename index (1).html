@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<title>영어 동사 뜻 입력기</title>
+<style>
+  body {
+    font-family: sans-serif;
+    max-width: 700px;
+    margin: auto;
+    padding: 20px;
+    background: #f5f5f5;
+  }
+  h1 {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .verb-block {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.12);
+    margin-bottom: 20px;
+  }
+  .verb-title {
+    font-weight: bold;
+    font-size: 20px;
+    margin-bottom: 12px;
+  }
+  label {
+    display: block;
+    margin: 8px 0 4px 0;
+    font-weight: 600;
+  }
+  input[type="text"] {
+    width: 100%;
+    font-size: 14px;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+  }
+  textarea {
+    width: 100%;
+    height: 220px;
+    margin-top: 20px;
+    font-size: 14px;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    resize: vertical;
+    box-sizing: border-box;
+  }
+  .btn-group {
+    text-align: center;
+    margin-top: 10px;
+  }
+  button {
+    margin: 0 6px;
+    padding: 10px 20px;
+    font-size: 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    background-color: #1976d2;
+    color: white;
+  }
+</style>
+</head>
+<body>
+
+<h1>영어 동사 뜻 입력기</h1>
+
+<div class="verb-block">
+  <div class="verb-title" id="verbTitle">단어: </div>
+
+  <label for="meaningBase">원형 뜻</label>
+  <input type="text" id="meaningBase" placeholder="원형 뜻 입력" autocomplete="off" />
+
+  <label for="meaningPast">과거형 뜻</label>
+  <input type="text" id="meaningPast" placeholder="과거형 뜻 입력" autocomplete="off" />
+
+  <label for="meaningPastParticiple">과거분사 뜻</label>
+  <input type="text" id="meaningPastParticiple" placeholder="과거분사 뜻 입력" autocomplete="off" />
+
+  <label for="meaningPresentParticiple">현재분사 뜻</label>
+  <input type="text" id="meaningPresentParticiple" placeholder="현재분사 뜻 입력" autocomplete="off" />
+</div>
+
+<div class="btn-group">
+  <button id="btnPrev">이전 단어</button>
+  <button id="btnNext">다음 단어</button>
+  <button id="btnCopy">JSON 복사</button>
+</div>
+
+<textarea id="resultArea" readonly placeholder="입력된 동사 뜻 JSON이 여기에 표시됩니다."></textarea>
+
+<script>
+  let verbs = [];
+  let currentIndex = 0;
+  let meanings = JSON.parse(localStorage.getItem('meanings') || '{}');
+
+  const verbTitle = document.getElementById('verbTitle');
+  const meaningBase = document.getElementById('meaningBase');
+  const meaningPast = document.getElementById('meaningPast');
+  const meaningPastParticiple = document.getElementById('meaningPastParticiple');
+  const meaningPresentParticiple = document.getElementById('meaningPresentParticiple');
+  const resultArea = document.getElementById('resultArea');
+  const btnPrev = document.getElementById('btnPrev');
+  const btnNext = document.getElementById('btnNext');
+  const btnCopy = document.getElementById('btnCopy');
+
+  fetch('verbs.json')
+    .then(res => res.json())
+    .then(data => {
+      verbs = data;
+      if (verbs.length === 0) {
+        alert('verbs.json이 비어있습니다.');
+        return;
+      }
+      loadVerb(currentIndex);
+      updateResultArea();
+    })
+    .catch(err => {
+      alert('verbs.json 불러오기 실패: ' + err);
+    });
+
+  function loadVerb(idx) {
+    if (idx < 0) idx = 0;
+    if (idx >= verbs.length) idx = verbs.length - 1;
+    currentIndex = idx;
+
+    const verb = verbs[currentIndex];
+    verbTitle.textContent = `단어: ${verb}`;
+
+    const wordMeanings = meanings[verb] || {};
+    meaningBase.value = wordMeanings.base || '';
+    meaningPast.value = wordMeanings.past || '';
+    meaningPastParticiple.value = wordMeanings.pastParticiple || '';
+    meaningPresentParticiple.value = wordMeanings.presentParticiple || '';
+  }
+
+  function saveMeanings() {
+    const verb = verbs[currentIndex];
+    if (!verb) return;
+
+    const base = meaningBase.value.trim();
+    const past = meaningPast.value.trim();
+    const pastParticiple = meaningPastParticiple.value.trim();
+    const presentParticiple = meaningPresentParticiple.value.trim();
+
+    if (!base && !past && !pastParticiple && !presentParticiple) {
+      delete meanings[verb];
+    } else {
+      meanings[verb] = {
+        base: base,
+        past: past,
+        pastParticiple: pastParticiple,
+        presentParticiple: presentParticiple
+      };
+    }
+    localStorage.setItem('meanings', JSON.stringify(meanings));
+    updateResultArea();
+  }
+
+  function updateResultArea() {
+    resultArea.value = JSON.stringify(meanings, null, 2);
+  }
+
+  [meaningBase, meaningPast, meaningPastParticiple, meaningPresentParticiple].forEach(input => {
+    input.addEventListener('input', () => {
+      saveMeanings();
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        btnNext.click();
+      }
+    });
+  });
+
+  btnNext.addEventListener('click', () => {
+    saveMeanings();
+    if (currentIndex < verbs.length -1) {
+      currentIndex++;
+      loadVerb(currentIndex);
+    } else {
+      alert('마지막 단어입니다.');
+    }
+  });
+
+  btnPrev.addEventListener('click', () => {
+    saveMeanings();
+    if (currentIndex > 0) {
+      currentIndex--;
+      loadVerb(currentIndex);
+    } else {
+      alert('처음 단어입니다.');
+    }
+  });
+
+  btnCopy.addEventListener('click', () => {
+    resultArea.select();
+    document.execCommand('copy');
+    alert('JSON이 복사되었습니다.');
+  });
+</script>
+
+</body>
+</html>
